@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STM32 学习追踪器</title>
+  <style>
+    :root {
+      --bg: #071a2d;
+      --panel: #0c2340;
+      --panel-2: #102d4b;
+      --primary: #6ab8ff;
+      --primary-strong: #3b8eea;
+      --muted: #b7d0ee;
+      --text: #edf6ff;
+      --success: #6be0a3;
+      --danger: #ff7e7e;
+      --shadow: rgba(7, 16, 28, 0.45);
+      --border: rgba(145, 193, 255, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #061722 0%, #0c2340 100%);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .app {
+      width: min(760px, 100%);
+      background: rgba(12, 31, 55, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 24px 48px var(--shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 24px 24px 12px;
+      background: linear-gradient(135deg, rgba(72, 129, 197, 0.2), rgba(18, 46, 77, 0.5));
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      letter-spacing: 0.04em;
+    }
+
+    .note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .panel, .toolbar, .summary, .actions {
+      padding: 18px 24px;
+    }
+
+    .panel {
+      border-bottom: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--muted);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      background: rgba(15, 38, 64, 0.9);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(106, 184, 255, 0.18);
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.2s ease, background 0.2s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(152, 196, 255, 0.55);
+      outline-offset: 2px;
+    }
+
+    .primary {
+      background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+      color: #041827;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    #statusMessage {
+      min-height: 1.2em;
+      text-align: right;
+    }
+
+    #statusMessage.error {
+      color: var(--danger);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter {
+      background: rgba(18, 46, 77, 0.8);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+    }
+
+    .filter.active {
+      background: linear-gradient(180deg, #7ac0ff, #4d9de8);
+      color: #061a2d;
+      border-color: transparent;
+    }
+
+    .summary {
+      font-size: 1rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #counter {
+      color: var(--text);
+      font-size: 1.08rem;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 29, 50, 0.5);
+    }
+
+    .task-item.done .task-text {
+      color: #a4c6df;
+      text-decoration: line-through;
+      opacity: 0.8;
+    }
+
+    .task-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--success);
+      flex-shrink: 0;
+    }
+
+    .task-text {
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    .delete-btn {
+      background: rgba(255, 126, 126, 0.12);
+      color: #ffd6d6;
+      border: 1px solid rgba(255, 126, 126, 0.22);
+      padding: 8px 12px;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      padding: 30px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .export-btn {
+      background: rgba(89, 154, 212, 0.1);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 560px) {
+      .input-row, .meta-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .meta-row {
+        text-align: left;
+      }
+
+      #statusMessage {
+        text-align: left;
+      }
+
+      .task-item {
+        align-items: flex-start;
+      }
+
+      .delete-btn {
+        align-self: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>STM32 学习追踪器</h1>
+      <div class="note">提示：学习数据仅保存在当前浏览器本地，不会上传到服务器，也不会共享给任何平台。</div>
+    </header>
+
+    <section class="panel">
+      <form id="taskForm" novalidate>
+        <label for="taskInput">新增学习任务</label>
+        <div class="input-row">
+          <input id="taskInput" type="text" maxlength="160" autocomplete="off" placeholder="例如：学习 ADC 采样与 DMA" aria-label="STM32 学习任务" />
+          <button type="submit" class="primary">添加</button>
+        </div>
+        <div class="meta-row">
+          <span id="charCount">0/160</span>
+          <span id="statusMessage" aria-live="polite" aria-atomic="true"></span>
+        </div>
+      </form>
+    </section>
+
+    <div class="toolbar" role="tablist" aria-label="任务筛选">
+      <button type="button" class="filter active" data-filter="all" aria-pressed="true">全部</button>
+      <button type="button" class="filter" data-filter="active" aria-pressed="false">未完成</button>
+      <button type="button" class="filter" data-filter="completed" aria-pressed="false">已完成</button>
+    </div>
+
+    <div class="summary">
+      已完成 <span id="counter">0 / 0</span>
+    </div>
+
+    <ul id="taskList" aria-live="polite"></ul>
+
+    <div class="actions">
+      <button type="button" class="export-btn" id="exportBtn">导出 JSON</button>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "stm32_learning_tracker_tasks_v1";
+      const DEFAULT_TASKS = [
+        "GPIO LED 控制",
+        "定时器中断使用",
+        "USART 串口通信",
+        "蓝牙模块连接"
+      ];
+
+      const taskForm = document.getElementById("taskForm");
+      const taskInput = document.getElementById("taskInput");
+      const taskList = document.getElementById("taskList");
+      const charCount = document.getElementById("charCount");
+      const statusMessage = document.getElementById("statusMessage");
+      const counter = document.getElementById("counter");
+      const exportBtn = document.getElementById("exportBtn");
+      const filterButtons = document.querySelectorAll(".filter");
+
+      let tasks = [];
+      let currentFilter = "all";
+
+      function setStatus(message, isError = false) {
+        statusMessage.textContent = message || "";
+        statusMessage.classList.toggle("error", Boolean(isError));
+      }
+
+      function updateCharCount() {
+        const value = taskInput.value.length;
+        charCount.textContent = value + "/160";
+      }
+
+      function safeReadStorage() {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          if (raw === null) return null;
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) {
+            throw new Error("Stored value is not an array.");
+          }
+          return parsed;
+        } catch (error) {
+          console.warn("Failed to parse stored tasks:", error);
+          setStatus("检测到无效的本地数据，已忽略并从空列表开始。", true);
+          try {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+          } catch (storageError) {
+            console.warn("Fallback storage write failed:", storageError);
+          }
+          return [];
+        }
+      }
+
+      function safeSaveStorage() {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+        } catch (error) {
+          console.warn("Failed to save tasks to localStorage:", error);
+          setStatus("浏览器存储不可用，当前仅保留在本次会话中。", true);
+        }
+      }
+
+      function normalizeTask(item) {
+        if (!item || typeof item !== "object") return null;
+        const text = typeof item.text === "string" ? item.text.slice(0, 160) : "";
+        if (!text.trim()) return null;
+        return {
+          id: typeof item.id === "number" ? item.id : Date.now() + Math.random(),
+          text: text,
+          completed: Boolean(item.completed)
+        };
+      }
+
+      function initializeTasks() {
+        const saved = safeReadStorage();
+
+        if (saved === null) {
+          tasks = DEFAULT_TASKS.map((text, index) => ({
+            id: Date.now() + index + Math.random(),
+            text: text,
+            completed: false
+          }));
+          safeSaveStorage();
+          setStatus("已初始化示例任务。");
+          return;
+        }
+
+        tasks = saved
+          .map(normalizeTask)
+          .filter(Boolean);
+      }
+
+      function render() {
+        const visibleTasks = tasks.filter((task) => {
+          if (currentFilter === "active") return !task.completed;
+          if (currentFilter === "completed") return task.completed;
+          return true;
+        });
+
+        while (taskList.firstChild) {
+          taskList.removeChild(taskList.firstChild);
+        }
+
+        if (visibleTasks.length === 0) {
+          const emptyItem = document.createElement("li");
+          emptyItem.className = "empty-state";
+          const emptyText = document.createElement("span");
+          emptyText.textContent =
+            currentFilter === "all"
+              ? "暂无任务，快来添加你的首个 STM32 学习计划。"
+              : currentFilter === "active"
+              ? "当前没有未完成任务。"
+              : "当前没有已完成任务。";
+          emptyItem.appendChild(emptyText);
+          taskList.appendChild(emptyItem);
+        } else {
+          visibleTasks.forEach((task) => {
+            const item = document.createElement("li");
+            item.className = "task-item";
+            if (task.completed) item.classList.add("done");
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = task.completed;
+            checkbox.setAttribute("aria-label", "标记任务是否完成");
+            checkbox.addEventListener("change", () => {
+              task.completed = checkbox.checked;
+              safeSaveStorage();
+              render();
+              setStatus(task.completed ? "任务已标记为已完成。" : "任务已恢复为未完成。");
+            });
+
+            const text = document.createElement("span");
+            text.className = "task-text";
+            text.textContent = task.text;
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
+            deleteBtn.className = "delete-btn";
+            deleteBtn.textContent = "删除";
+            deleteBtn.setAttribute("aria-label", "删除任务");
+            deleteBtn.addEventListener("click", () => {
+              const confirmed = window.confirm("是否删除该学习任务？");
+              if (!confirmed) {
+                setStatus("已取消删除。");
+                return;
+              }
+
+              tasks = tasks.filter((entry) => entry.id !== task.id);
+              safeSaveStorage();
+              render();
+              setStatus("任务已删除。");
+            });
+
+            item.appendChild(checkbox);
+            item.appendChild(text);
+            item.appendChild(deleteBtn);
+            taskList.appendChild(item);
+          });
+        }
+
+        const completedCount = tasks.filter((task) => task.completed).length;
+        counter.textContent = completedCount + " / " + tasks.length;
+
+        filterButtons.forEach((button) => {
+          const isActive = button.dataset.filter === currentFilter;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+      }
+
+      function addTask() {
+        const value = taskInput.value.trim();
+        if (!value) {
+          setStatus("请输入学习任务内容。", true);
+          taskInput.focus();
+          return;
+        }
+
+        if (value.length > 160) {
+          setStatus("任务内容不能超过 160 个字符。", true);
+          return;
+        }
+
+        tasks.unshift({
+          id: Date.now() + Math.random(),
+          text: value.slice(0, 160),
+          completed: false
+        });
+
+        safeSaveStorage();
+        render();
+        taskForm.reset();
+        updateCharCount();
+        taskInput.focus();
+        setStatus("已添加新任务。");
+      }
+
+      taskForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        addTask();
+      });
+
+      taskInput.addEventListener("input", updateCharCount);
+
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          currentFilter = button.dataset.filter;
+          render();
+          setStatus("已切换筛选条件。");
+        });
+      });
+
+      exportBtn.addEventListener("click", () => {
+        if (tasks.length === 0) {
+          setStatus("当前没有可导出的任务。", true);
+          return;
+        }
+
+        const json = JSON.stringify(tasks, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "stm32-learning-tasks.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        URL.revokeObjectURL(url);
+        setStatus("任务列表已导出为 JSON 文件。");
+      });
+
+      updateCharCount();
+      initializeTasks();
+      render();
+    })();
+  </script>
+</body>
+</html>
+
